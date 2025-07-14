@@ -1,8 +1,6 @@
 Flask
 flask-cors
 Flask-SQLAlchemy
-opencv-python
-mediapipe
+opencv-python-headless
 numpy
-gunicorn
-
+gunicorn 

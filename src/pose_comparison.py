@@ -1,16 +1,30 @@
 
 import cv2
-import mediapipe as mp
 import numpy as np
 import time
 
+# Try to import mediapipe, but provide fallback for deployment
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    MEDIAPIPE_AVAILABLE = False
+    print("Warning: MediaPipe not available. Pose detection will be limited.")
+
 class PoseComparator:
     def __init__(self):
-        self.mp_pose = mp.solutions.pose
-        self.pose = self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-        self.mp_drawing = mp.solutions.drawing_utils
+        if MEDIAPIPE_AVAILABLE:
+            self.mp_pose = mp.solutions.pose
+            self.pose = self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+            self.mp_drawing = mp.solutions.drawing_utils
+        else:
+            self.pose = None
+            self.mp_drawing = None
 
     def detect_pose_image(self, image_path):
+        if not MEDIAPIPE_AVAILABLE:
+            return None, None
+            
         image = cv2.imread(image_path)
         if image is None:
             print(f"Error: Could not load image from {image_path}")
@@ -20,17 +34,21 @@ class PoseComparator:
         return results, image
 
     def detect_pose_frame(self, frame):
+        if not MEDIAPIPE_AVAILABLE:
+            return None
+            
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.pose.process(frame_rgb)
         return results
 
     def extract_landmarks(self, results):
-        if results.pose_landmarks:
-            landmarks = []
-            for landmark in results.pose_landmarks.landmark:
-                landmarks.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
-            return np.array(landmarks)
-        return None
+        if not MEDIAPIPE_AVAILABLE or not results or not results.pose_landmarks:
+            return None
+            
+        landmarks = []
+        for landmark in results.pose_landmarks.landmark:
+            landmarks.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
+        return np.array(landmarks)
 
     def compare_poses(self, landmarks1, landmarks2):
         if landmarks1 is None or landmarks2 is None:
@@ -43,8 +61,10 @@ class PoseComparator:
         return distance
 
     def draw_landmarks(self, image, results):
-        if results.pose_landmarks:
-            self.mp_drawing.draw_landmarks(image, results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)
+        if not MEDIAPIPE_AVAILABLE or not results or not results.pose_landmarks:
+            return image
+            
+        self.mp_drawing.draw_landmarks(image, results.pose_landmarks, self.mp_pose.POSE_CONNECTIONS)
         return image
 
 if __name__ == '__main__':
